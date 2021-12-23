@@ -1,6 +1,5 @@
 import bpy
 import bmesh
-import traceback
 
 class Utilities:
 	@staticmethod
