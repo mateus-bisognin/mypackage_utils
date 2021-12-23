@@ -38,4 +38,5 @@ bm.from_mesh(p.data)
 print(p)
 v = Utilities.backLeftBottomVertex(bm)
 print(v)
+
 print(v.co)
