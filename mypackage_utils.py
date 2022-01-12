@@ -74,9 +74,6 @@ def duplicate_object_linked(obj):
 	collection.objects.link(newCopy)
 	return newCopy
 
-def plug_object_to_socket(plug, face):
-	socketNormal = face.normal
-
 # def place_copy_of_obj2_to_obj1_mesh_vertex(obj1, obj2, vertex, merge = True):
 # 	# obj2 origin will to vertex
 # 	bm1 = bmesh.new()
@@ -187,7 +184,91 @@ def get_normal_from_first_face_in_facemap(obj, facemap_name):
 	bm.free()
 	return normal
 
+def plug_object_to_socket(plug, face):
+	socketNormal = face.normal
 
+def createWindowSocketFacemap(face):
+	pass
+	# definir se vai ser simetrico
+	# definir altura do topo da janela
+	# definir ponto aleatoriamente a partir da lateral
+	# criar cortes (loopcuts) da altura (horizontalmente) e da lateral (verticalmente)
+	# definir largura e altura aleatoria (inversamente proporcional à distancia do centro)
+
+def createSocketInFace(bm, face, size, position):
+	upperEdge = getEdgeOnAxis(face, axis = 2, position = 'upper')
+	lowestEdge = getEdgeOnAxis(face, axis = 2, position = 'lowest')
+	bmesh.ops.subdivide_edges(bm, edges = [upperEdge, lowestEdge], cuts = 1)
+	# quatro cortes
+	# um corte vertical
+	# desloca os vertices de geom_inner para a posicao, salva a edge
+	# mais um corte vertical nas duas edges que estao do mesmo lado
+
+def subdivideFaceIntoWindows(bm, face, numberOfWindows):
+	upperEdge = getEdgeOnAxis(face, axis = 2, position = 'upper')
+	lowestEdge = getEdgeOnAxis(face, axis = 2, position = 'lowest')
+	subdivisionResult = bmesh.ops.subdivide_edges(bm, edges = [upperEdge, lowestEdge], cuts = numberOfWindows*2)
+
+	t = type(face.edges[0])
+	edges = [edge for edge in subdivisionResult['geom_inner'] if (type(edge) == t)]
+	# reordered = sorted(edges, key = lambda edge: list(edge.verts)[0].co[1])
+	n = 2
+	# sides = [reordered[i: i + n] for i in range(0, len(reordered), n)]
+	sides = [edges[i: i + n] for i in range(0, len(edges), n)]
+	windows = []
+	for sidePair in sides:
+		result = bmesh.ops.subdivide_edges(bm, edges = sidePair, cuts = 2)
+		windows.append(result)
+	
+	return windows
+
+def setWindowPosition(bm, windows, position):
+	pass
+
+def setWindowsToFacemap(bm, windows, facemapIndex):
+	for window in windows:
+		edges = [edge for edge in window['geom_inner'] if (type(edge) is bmesh.types.BMEdge)]
+		fm = bm.faces.layer.face_map.verify()
+		for face in bm.faces:
+			if all(edge in face.edges for edge in edges):
+				face[fm] = facemapIndex
+
+def intToStrGeoAxis(axis):
+	if axis not in range(0,3):
+		raise ValueError(f'Axis {axis} not in [ 0, 1, 2 ]')
+
+	d = {
+		0: 'X',
+		1: 'Y',
+		2: 'Z'
+	}
+	return d[axis]
+
+def planePerpendicularToAxis(axis):
+	s = intToStrGeoAxis(axis)
+	geoAxes = 'XYZ'
+	return geoAxes.replace(s, '')
+
+def getEdgeOnAxis(bmtype, *, axis, position):
+	verts = list(bmtype.verts)
+	edges = list(bmtype.edges)
+	
+	reverse = {
+		'upper': True,
+		'lowest': False
+	}
+
+	sortedList = sorted(verts, key = lambda vert: vert.co[axis], reverse = reverse[position])
+	firstVert = sortedList[0]
+	allVertsAtAxisPosition = [vert for vert in verts if vert.co[axis] == firstVert.co[axis]]
+	result = [edge for edge in edges if all(v in allVertsAtAxisPosition for v in edge.verts)]
+
+	if len(result) > 1:
+		raise ValueError(f'Error: {bmtype} has no unique edge at the {position} point on {intToStrGeoAxis(axis)} axis')
+	if len(result) == 0:
+		raise ValueError(f'Error: {bmtype} has no edge parallel to {planePerpendicularToAxis(axis)} plane at the {position} point')
+	
+	return result[0]
 
 # from mypackage_utils import mypackage_utils as u
 def tempfunction():
@@ -199,7 +280,7 @@ def tempfunction():
 	faces = u.get_faces_from_facemap_index(tbm, 0)
 	v1 = u.backLeftBottomVertex(list(faces[0].verts))
 	u.place_copy_of_obj2_to_obj1_mesh_vertex(c1, p, v1)
-
+	
 
 
 # p = bpy.data.objects[1]
