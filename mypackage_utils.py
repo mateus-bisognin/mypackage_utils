@@ -204,7 +204,7 @@ def createSocketInFace(bm, face, size, position):
 	# desloca os vertices de geom_inner para a posicao, salva a edge
 	# mais um corte vertical nas duas edges que estao do mesmo lado
 
-def subdivideFaceIntoWindows(bm, face, numberOfWindows):
+def subdivideFaceIntoWindows(bm, *, face, numberOfWindows):
 	upperEdge = getEdgeOnAxis(face, axis = 2, position = 'upper')
 	lowestEdge = getEdgeOnAxis(face, axis = 2, position = 'lowest')
 	subdivisionResult = bmesh.ops.subdivide_edges(bm, edges = [upperEdge, lowestEdge], cuts = numberOfWindows*2)
@@ -222,8 +222,30 @@ def subdivideFaceIntoWindows(bm, face, numberOfWindows):
 	
 	return windows
 
-def setWindowPosition(bm, windows, position):
-	pass
+def setWindowPositionAndSize(bm, *, window, position, size, relativeY):
+	# relativeY must be the left edge y coordinate
+	edges = [edge for edge in window['geom'] if (type(edge) is bmesh.types.BMEdge)]
+	verts = set([vert for edge in edges for vert in edge.verts])
+	leftVert = backLeftBottomVertex(verts)
+	leftVerts = [vert for vert in verts if (round(vert.co[1], 4) == round(leftVert.co[1], 4))]
+	rightVerts = [vert for vert in verts if (round(vert.co[1], 4) != round(leftVert.co[1], 4))]
+	for vert in leftVerts:
+		vert.co[1] = position['y'] + relativeY
+	
+	for vert in rightVerts:
+		vert.co[1] = position['y'] + size['width'] + relativeY
+	# y position done
+	# start z position
+	innerEdges = [edge for edge in window['geom_inner'] if (type(edge) is bmesh.types.BMEdge)]
+	face = next(f for f in bm.faces if all(edge in f.edges for edge in innerEdges))
+	upper = getEdgeOnAxis(face, axis = 2, position = 'upper')
+	lowest = getEdgeOnAxis(face, axis = 2, position = 'lowest')
+	for vert in upper.verts:
+		vert.co[2] = position['z']
+	for vert in lowest.verts:
+		vert.co[2] = position['z'] - size['height']
+
+
 
 def setWindowsToFacemap(bm, windows, facemapIndex):
 	for window in windows:
@@ -232,6 +254,13 @@ def setWindowsToFacemap(bm, windows, facemapIndex):
 		for face in bm.faces:
 			if all(edge in face.edges for edge in edges):
 				face[fm] = facemapIndex
+
+def setPositionOfSymmetrical(position, size):
+	# size width vai ser negativo
+	negSize = {'width': size['width'] * -1, 'height': size['height']}
+	# position vai ser o negativo em relação ao ponto central
+	negPosition = {'y': position['y'] * -1, 'z': position['z']}
+	return (negPosition, negSize)
 
 def intToStrGeoAxis(axis):
 	if axis not in range(0,3):
@@ -270,6 +299,17 @@ def getEdgeOnAxis(bmtype, *, axis, position):
 	
 	return result[0]
 
+# def medianVertexOnEdge(edge):
+# 	v0 = edge.verts[0]
+# 	v1 = edge.verts[1]
+
+# 	x = v0.co[0] 
+
+# def medianVertexOnFace(face, *, axis = 1):
+# 	upper = getEdgeOnAxis(face, 2, 'upper')
+# 	verts = u
+
+
 # from mypackage_utils import mypackage_utils as u
 def tempfunction():
 	# passo a passo para colar p no vértice mais a esquerda da face 0 do facemap janelas de c1
@@ -280,7 +320,39 @@ def tempfunction():
 	faces = u.get_faces_from_facemap_index(tbm, 0)
 	v1 = u.backLeftBottomVertex(list(faces[0].verts))
 	u.place_copy_of_obj2_to_obj1_mesh_vertex(c1, p, v1)
+
+def tempfunction2(D):
+	# passo a passo para colar p no vértice mais a esquerda da face 0 do facemap janelas de c1
+	p = D.objects['Plane.002']
+	bm = bmesh.new()
+	bm.from_mesh(p.data)
+	bm.faces.ensure_lookup_table()
+	face = bm.faces[0]
+	upper = getEdgeOnAxis(face, axis = 2, position = 'upper')
+	lowest = getEdgeOnAxis(face, axis = 2, position = 'lowest')
+	r = bmesh.ops.subdivide_edges(bm, edges = [upper, lowest], cuts = 1)
+	center = r['geom_inner'][0]
+
 	
+	relativeY = center.co[1]
+	p1 = {'y': 2, 'z': 5}
+	size = {'width': 4, 'height': 8}
+	p2, size2 = setPositionOfSymmetrical(p1, size)
+
+	bm.faces.ensure_lookup_table()
+	face1 = bm.faces[0]
+	face2 = bm.faces[1]
+	windows1 = subdivideFaceIntoWindows(bm, face = face1, numberOfWindows = 3)
+	w1 = windows1[0]
+	setWindowPositionAndSize(bm, window = w1, position = p1, size = size, relativeY = relativeY)
+	
+	windows2 = subdivideFaceIntoWindows(bm, face = face2, numberOfWindows = 3)
+	w2 = windows2[-1]
+	setWindowPositionAndSize(bm, window = w2, position = p2, size = size2, relativeY = relativeY)
+	# print(w2)
+	bm.to_mesh(p.data)
+	bm.free()
+
 
 
 # p = bpy.data.objects[1]
