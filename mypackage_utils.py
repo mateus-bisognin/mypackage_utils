@@ -299,6 +299,12 @@ def getEdgeOnAxis(bmtype, *, axis, position):
 	
 	return result[0]
 
+def getStructureAtSideOfAxis(structureList, axis, direction):
+	reverse = {
+		'upper': True,
+		'lowest': False
+	}
+	sortedList = sorted(structureList, key = lambda structure: structure.verts, reverse[direction])
 # def medianVertexOnEdge(edge):
 # 	v0 = edge.verts[0]
 # 	v1 = edge.verts[1]
